@@ -70,6 +70,26 @@ func (cxt *Decoder) ReadUint32() (value uint32) {
 	return value
 }
 
+func (cxt *Decoder) ReadStringKnownLength(length int) string {
+	data := make([]byte, length)
+	n, err := cxt.stream.Read(data)
+	if n < length {
+		cxt.saveError(fmt.Errorf("not enough bytes in ReadStringKnownLength (expected %d, found %d)", length, n))
+		return ""
+	}
+
+	cxt.saveError(err)
+	return string(data)
+}
+
+func (cxt *Decoder) ReadString() string {
+	length := int(cxt.ReadUint16())
+	if cxt.errored() {
+		return ""
+	}
+	return cxt.ReadStringKnownLength(length)
+}
+
 func (cxt *Decoder) errored() bool {
 	return cxt.decodeError != nil
 }
