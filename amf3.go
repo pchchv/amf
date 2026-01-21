@@ -1,6 +1,7 @@
 package goAMF3
 
 import (
+	"encoding/binary"
 	"fmt"
 	"reflect"
 )
@@ -49,6 +50,24 @@ func NewDecoder(stream Reader, amfVersion uint16) *Decoder {
 	decoder.AmfVersion = amfVersion
 	decoder.typeMap = make(map[string]reflect.Type)
 	return decoder
+}
+
+func (cxt *Decoder) ReadUint8() (value uint8) {
+	err := binary.Read(cxt.stream, binary.BigEndian, &value)
+	cxt.saveError(err)
+	return value
+}
+
+func (cxt *Decoder) ReadUint16() (value uint16) {
+	err := binary.Read(cxt.stream, binary.BigEndian, &value)
+	cxt.saveError(err)
+	return value
+}
+
+func (cxt *Decoder) ReadUint32() (value uint32) {
+	err := binary.Read(cxt.stream, binary.BigEndian, &value)
+	cxt.saveError(err)
+	return value
 }
 
 func (cxt *Decoder) errored() bool {
