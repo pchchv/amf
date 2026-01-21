@@ -648,3 +648,49 @@ func (cxt *Encoder) writeFlatArrayAmf3(value []interface{}) error {
 
 	return nil
 }
+
+func (cxt *Encoder) writeMixedArray3(value *AvmArray) error {
+	elementCount := len(value.elements)
+	// TODO: Support outgoing array references
+	ref := (elementCount << 1) + 1
+	cxt.WriteUint29(uint32(ref))
+	// write fields
+	for k, v := range value.fields {
+		cxt.WriteStringAmf3(k)
+		cxt.WriteValueAmf3(v)
+	}
+
+	// write a null name to indicate the end of fields.
+	cxt.WriteStringAmf3("")
+	// write dense elements
+	for i := 0; i < elementCount; i++ {
+		cxt.WriteValueAmf3(value.elements[i])
+	}
+
+	return nil
+}
+
+func (cxt *Encoder) writeDynamicObjectAmf3(obj map[string]interface{}) error {
+	// start with the AMF3 object marker and dynamic object marker
+	// 0x0B marker indicates a dynamic object with no class definition
+	cxt.writeByte(AMF3Object)
+	cxt.WriteUint29(0x0B)
+	// write an empty string for class name to indicate no class definition
+	// this is part of the AMF3 dynamic object specification
+	cxt.WriteStringAmf3("")
+	// iterate over the map to write dynamic properties
+	for key, value := range obj {
+		// write property name
+		cxt.WriteStringAmf3(key)
+		// write property value
+		// convert the interface{} to reflect.Value and write using writeReflectedValueAmf3
+		if err := cxt.writeReflectedValueAmf3(reflect.ValueOf(value)); err != nil {
+			return err // handle errors from writing the value
+		}
+	}
+
+	// write the end of dynamic properties marker
+	// end of dynamic object
+	cxt.WriteUint29(0x01)
+	return nil
+}
