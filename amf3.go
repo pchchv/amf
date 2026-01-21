@@ -482,6 +482,16 @@ func (cxt *Encoder) WriteUint29(value uint32) error {
 	return nil
 }
 
+func (cxt *Encoder) WriteFloat64(value float64) error {
+	return binary.Write(cxt.stream, binary.BigEndian, &value)
+}
+
+func (cxt *Encoder) WriteString(str string) error {
+	binary.Write(cxt.stream, binary.BigEndian, uint16(len(str)))
+	_, err := cxt.stream.Write([]byte(str))
+	return err
+}
+
 func (cxt *Encoder) writeByte(b uint8) error {
 	return binary.Write(cxt.stream, binary.BigEndian, b)
 }
