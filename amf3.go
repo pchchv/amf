@@ -10,3 +10,9 @@ type AvmClass struct {
 	externalizable bool
 	properties     []string
 }
+
+type AvmObject struct {
+	class         *AvmClass
+	staticFields  []interface{}
+	dynamicFields map[string]interface{}
+}
