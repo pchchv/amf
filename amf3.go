@@ -74,6 +74,13 @@ func (cxt *Decoder) ReadUint32() (value uint32) {
 	return value
 }
 
+func (cxt *Decoder) ReadFloat64() float64 {
+	var value float64
+	err := binary.Read(cxt.stream, binary.BigEndian, &value)
+	cxt.saveError(err)
+	return value
+}
+
 func (cxt *Decoder) ReadStringKnownLength(length int) string {
 	data := make([]byte, length)
 	n, err := cxt.stream.Read(data)
@@ -92,6 +99,13 @@ func (cxt *Decoder) ReadString() string {
 		return ""
 	}
 	return cxt.ReadStringKnownLength(length)
+}
+
+func (cxt *Decoder) ReadByte() uint8 {
+	buf := make([]byte, 1)
+	_, err := cxt.stream.Read(buf)
+	cxt.saveError(err)
+	return buf[0]
 }
 
 func (cxt *Decoder) storeObjectInTable(obj interface{}) {
