@@ -3,6 +3,7 @@ package goAMF3
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"time"
@@ -507,6 +508,23 @@ func (cxt *Encoder) WriteBool(b bool) {
 	}
 
 	binary.Write(cxt.stream, binary.BigEndian, uint8(val))
+}
+
+func (cxt *Encoder) writeObjectAmf3(value interface{}) error {
+	fmt.Printf("writeObjectAmf3 attempting to write a value of type %s\n", reflect.ValueOf(value).Type().Name())
+	return nil
+}
+
+func (cxt *Encoder) WriteDateAmf3(v time.Time) error {
+	// convert time to milliseconds since Unix epoch
+	milliseconds := v.UnixNano() / 1000000
+	cxt.writeByte(AMF3Date) // date marker
+	cxt.WriteUint29(1)      // U29 here is a flag (1 << 1) indicating that what follows is an inline value
+	// append the timestamp as a double (64-bit floating point)
+	timestamp := make([]byte, 8)
+	binary.BigEndian.PutUint64(timestamp, math.Float64bits(float64(milliseconds)))
+	cxt.stream.Write(timestamp)
+	return nil
 }
 
 func (cxt *Encoder) writeByte(b uint8) error {
