@@ -52,6 +52,10 @@ func NewDecoder(stream Reader, amfVersion uint16) *Decoder {
 	return decoder
 }
 
+func (cxt *Decoder) RegisterType(flexName string, instance interface{}) {
+	cxt.typeMap[flexName] = reflect.TypeOf(instance)
+}
+
 func (cxt *Decoder) ReadUint8() (value uint8) {
 	err := binary.Read(cxt.stream, binary.BigEndian, &value)
 	cxt.saveError(err)
@@ -88,6 +92,10 @@ func (cxt *Decoder) ReadString() string {
 		return ""
 	}
 	return cxt.ReadStringKnownLength(length)
+}
+
+func (cxt *Decoder) storeObjectInTable(obj interface{}) {
+	cxt.objectTable = append(cxt.objectTable, obj)
 }
 
 func (cxt *Decoder) errored() bool {
