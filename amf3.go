@@ -534,6 +534,13 @@ func (cxt *Encoder) WriteDateAmf3(v time.Time) error {
 	return nil
 }
 
+func (cxt *Encoder) WriteValueAmf3(value interface{}) error {
+	if value == nil {
+		return cxt.writeByte(AMF3Null)
+	}
+	return cxt.writeReflectedValueAmf3(reflect.ValueOf(value))
+}
+
 func (cxt *Encoder) writeByte(b uint8) error {
 	return binary.Write(cxt.stream, binary.BigEndian, b)
 }
@@ -566,5 +573,49 @@ func (cxt *Encoder) writeClassDefinitionAmf3(class *AvmClass) {
 	// property names
 	for _, name := range class.properties {
 		cxt.WriteStringAmf3(name)
+	}
+}
+
+func (cxt *Encoder) writeReflectedValueAmf3(value reflect.Value) error {
+	// get by Kind()
+	switch value.Kind() {
+	case reflect.String:
+		cxt.writeByte(AMF3String)
+		return cxt.WriteStringAmf3(value.String())
+	case reflect.Bool:
+		if value.Bool() {
+			return cxt.writeByte(AMF3True)
+		}
+		return cxt.writeByte(AMF3False)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
+		cxt.writeByte(AMF3Integer)
+		return cxt.WriteUint29(uint32(value.Int()))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32:
+		cxt.writeByte(AMF3Integer)
+		return cxt.WriteUint29(uint32(value.Uint()))
+	case reflect.Int64, reflect.Uint64:
+		cxt.writeByte(AMF3Double)
+		return cxt.WriteFloat64(float64(value.Int()))
+	case reflect.Float32, reflect.Float64:
+		cxt.writeByte(AMF3Double)
+		return cxt.WriteFloat64(value.Float())
+	case reflect.Array, reflect.Slice:
+		// Specifically check for []byte to encode as AMF3 ByteArray
+		if value.Type().Elem().Kind() == reflect.Uint8 {
+			return cxt.writeByteArrayAmf3(value.Interface().([]uint8))
+		} else {
+			cxt.writeByte(AMF3Array)
+			return cxt.writeReflectedArrayAmf3(value)
+		}
+	default:
+		// Handle time.Time and map[string]interface{} types by type assertion
+		switch v := value.Interface().(type) {
+		case time.Time:
+			return cxt.WriteDateAmf3(v)
+		case map[string]interface{}:
+			return cxt.writeDynamicObjectAmf3(v)
+		default:
+			return fmt.Errorf("writeReflectedValueAmf3 doesn't support kind %s or type: %s", value.Kind().String(), value.Type().String())
+		}
 	}
 }
