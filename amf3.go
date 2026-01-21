@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"reflect"
+	"time"
 )
 
 type Reader interface {
@@ -164,4 +165,56 @@ func (cxt *Decoder) readByteArrayAmf3() []byte {
 	}
 
 	return byteArray
+}
+
+func (cxt *Decoder) readStringAmf3() string {
+	ref := cxt.ReadUint29()
+	if cxt.errored() {
+		return ""
+	}
+
+	// check the low bit to see if this is a reference
+	if (ref & 1) == 0 {
+		if index := int(ref >> 1); index >= len(cxt.stringTable) {
+			cxt.saveError(fmt.Errorf("invalid string index: %d", index))
+			return ""
+		} else {
+			return cxt.stringTable[index]
+		}
+	}
+
+	length := int(ref >> 1)
+	if length == 0 {
+		return ""
+	}
+
+	str := cxt.ReadStringKnownLength(length)
+	cxt.stringTable = append(cxt.stringTable, str)
+	return str
+}
+
+func (cxt *Decoder) readDateAmf3() interface{} {
+	// read the first U29 which includes the reference bit
+	ref := cxt.ReadUint29()
+	// check for error after reading U29
+	if cxt.errored() {
+		return time.Time{}
+	}
+
+	// сheck the low bit; for Date, we do not use object references,
+	// so if the low bit is 0, it's an invalid format for a Date
+	if (ref & 1) == 0 {
+		cxt.saveError(fmt.Errorf("invalid date format"))
+		return time.Time{}
+	}
+
+	// кead the date value in milliseconds since the Unix epoch,
+	// encoded as a 64-bit floating point
+	millis := cxt.ReadFloat64()
+
+	// сonvert milliseconds to a time.Time object and return
+	// Unix() method in time.Time accepts seconds and nanoseconds,
+	// so convert milliseconds to nanoseconds for the second argument
+	dtime := time.Unix(0, int64(millis)*int64(time.Millisecond))
+	return dtime
 }
