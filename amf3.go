@@ -439,3 +439,11 @@ func (cxt *Decoder) readObjectAmf3() interface{} {
 
 	return object
 }
+
+type Encoder struct {
+	stream Writer
+}
+
+func NewEncoder(stream Writer) *Encoder {
+	return &Encoder{stream}
+}
