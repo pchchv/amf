@@ -1,6 +1,9 @@
 package goAMF3
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 type Reader interface {
 	Read(p []byte) (n int, err error)
@@ -46,4 +49,18 @@ func NewDecoder(stream Reader, amfVersion uint16) *Decoder {
 	decoder.AmfVersion = amfVersion
 	decoder.typeMap = make(map[string]reflect.Type)
 	return decoder
+}
+
+func (cxt *Decoder) errored() bool {
+	return cxt.decodeError != nil
+}
+
+func (cxt *Decoder) saveError(err error) {
+	if err != nil {
+		if cxt.decodeError != nil {
+			fmt.Println("warning: duplicate errors on Decoder")
+		} else {
+			cxt.decodeError = err
+		}
+	}
 }
