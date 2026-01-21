@@ -7,6 +7,27 @@ import (
 	"time"
 )
 
+const (
+	AMF3Null           byte = 0x01
+	AMF3True           byte = 0x03
+	AMF3Date           byte = 0x08
+	AMF3False          byte = 0x02
+	AMF3Array          byte = 0x09
+	AMF3Double         byte = 0x05
+	AMF3String         byte = 0x06
+	AMF3Object         byte = 0x0a
+	AMF3Dynamic        byte = 0x0b
+	AMF3Integer        byte = 0x04
+	AMF3Undefined      byte = 0x00
+	AMF3ByteArray      byte = 0x0c
+	AMF3VectorInt      byte = 0x0d
+	AMF3VectorUint     byte = 0x0d
+	AMF3Dictionary     byte = 0x11
+	AMF3VectorDouble   byte = 0x0d
+	AMF3VectorObject   byte = 0x0d
+	AMF3Externalizable byte = 0x07
+)
+
 type Reader interface {
 	Read(p []byte) (n int, err error)
 }
@@ -131,6 +152,42 @@ func (cxt *Decoder) ReadByte() uint8 {
 	return buf[0]
 }
 
+func (cxt *Decoder) ReadValueAmf3() interface{} {
+	// read type marker
+	typeMarker := cxt.ReadByte()
+	if cxt.errored() {
+		return nil
+	}
+
+	switch typeMarker {
+	case AMF3Null, AMF3Undefined:
+		return nil
+	case AMF3False:
+		return false
+	case AMF3True:
+		return true
+	case AMF3Integer:
+		return cxt.ReadUint29()
+	case AMF3Double:
+		return cxt.ReadFloat64()
+	case AMF3String:
+		return cxt.readStringAmf3()
+	case AMF3Externalizable:
+		// TODO
+	case AMF3Date:
+		return cxt.readDateAmf3()
+	case AMF3Object:
+		return cxt.readObjectAmf3()
+	case AMF3ByteArray:
+		return cxt.readByteArrayAmf3()
+	case AMF3Array:
+		return cxt.readArrayAmf3()
+	}
+
+	cxt.saveError(fmt.Errorf("AMF3 type marker was not supported"))
+	return nil
+}
+
 func (cxt *Decoder) storeObjectInTable(obj interface{}) {
 	cxt.objectTable = append(cxt.objectTable, obj)
 }
@@ -217,4 +274,51 @@ func (cxt *Decoder) readDateAmf3() interface{} {
 	// so convert milliseconds to nanoseconds for the second argument
 	dtime := time.Unix(0, int64(millis)*int64(time.Millisecond))
 	return dtime
+}
+
+func (cxt *Decoder) readArrayAmf3() interface{} {
+	ref := cxt.ReadUint29()
+	if cxt.errored() {
+		return nil
+	}
+
+	// check the low bit to see if this is a reference
+	if (ref & 1) == 0 {
+		index := int(ref >> 1)
+		if index >= len(cxt.objectTable) {
+			cxt.saveError(fmt.Errorf("invalid array reference: %d", index))
+			return nil
+		}
+
+		return cxt.objectTable[index]
+	}
+
+	elementCount := int(ref >> 1)
+	// read name-value pairs, if any.
+	key := cxt.readStringAmf3()
+	// no name-value pairs, return a flat Go array.
+	if key == "" {
+		result := make([]interface{}, elementCount)
+		for i := 0; i < elementCount; i++ {
+			result[i] = cxt.ReadValueAmf3()
+		}
+		return result
+	}
+
+	result := &AvmArray{}
+	result.fields = make(map[string]interface{})
+	// store the object in the table before doing any decoding.
+	cxt.storeObjectInTable(result)
+	for key != "" {
+		result.fields[key] = cxt.ReadValueAmf3()
+		key = cxt.readStringAmf3()
+	}
+
+	// read dense elements
+	result.elements = make([]interface{}, elementCount)
+	for i := 0; i < elementCount; i++ {
+		result.elements[i] = cxt.ReadValueAmf3()
+	}
+
+	return result
 }
