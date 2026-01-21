@@ -447,3 +447,18 @@ type Encoder struct {
 func NewEncoder(stream Writer) *Encoder {
 	return &Encoder{stream}
 }
+
+func (cxt *Encoder) writeByte(b uint8) error {
+	return binary.Write(cxt.stream, binary.BigEndian, b)
+}
+
+func (cxt *Encoder) writeByteArrayAmf3(data []byte) error {
+	// write the AMF3 ByteArray marker
+	cxt.writeByte(AMF3ByteArray)
+	// encode the length of the byte array.
+	length := len(data)
+	cxt.WriteUint29(uint32(length)<<1 | 1)
+	// append the actual data
+	_, err := cxt.stream.Write(data)
+	return err
+}
