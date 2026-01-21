@@ -510,18 +510,6 @@ func (cxt *Encoder) WriteBool(b bool) {
 	binary.Write(cxt.stream, binary.BigEndian, uint8(val))
 }
 
-func (cxt *Encoder) writeObjectAmf3(value interface{}) error {
-	fmt.Printf("writeObjectAmf3 attempting to write a value of type %s\n", reflect.ValueOf(value).Type().Name())
-	return nil
-}
-
-func (cxt *Encoder) writeAvmObject3(value *AvmObject) error {
-	// TODO: Support outgoing object references.
-	// writeClassDefinitionAmf3 will also write the ref section
-	cxt.writeClassDefinitionAmf3(value.class)
-	return nil
-}
-
 func (cxt *Encoder) WriteDateAmf3(v time.Time) error {
 	// convert time to milliseconds since Unix epoch
 	milliseconds := v.UnixNano() / 1000000
@@ -692,5 +680,45 @@ func (cxt *Encoder) writeDynamicObjectAmf3(obj map[string]interface{}) error {
 	// write the end of dynamic properties marker
 	// end of dynamic object
 	cxt.WriteUint29(0x01)
+	return nil
+}
+
+func (cxt *Encoder) writeObjectAmf3(value interface{}) error {
+	fmt.Printf("writeObjectAmf3 attempting to write a value of type %s\n", reflect.ValueOf(value).Type().Name())
+	return nil
+}
+
+func (cxt *Encoder) writeAvmObject3(value *AvmObject) error {
+	// TODO: Support outgoing object references.
+	// writeClassDefinitionAmf3 will also write the ref section
+	cxt.writeClassDefinitionAmf3(value.class)
+	return nil
+}
+
+func (cxt *Encoder) writeReflectedStructAmf3(value reflect.Value) error {
+	if value.Kind() != reflect.Struct {
+		return fmt.Errorf("writeReflectedStructAmf3 called with non-struct value")
+	}
+
+	// ref is, non-object-ref, non-class-ref, non-externalizable, non-dynamic
+	ref := 0x2
+	numFields := value.Type().NumField()
+	ref += numFields << 4
+	cxt.WriteUint29(uint32(ref))
+	// class name
+	cxt.WriteStringAmf3(value.Type().Name())
+	fmt.Printf("wrote class name = %s\n", value.Type().Name())
+	// property names
+	for i := 0; i < numFields; i++ {
+		structField := value.Type().Field(i)
+		cxt.WriteStringAmf3(structField.Name)
+		fmt.Printf("wrote field name = %s\n", structField.Name)
+	}
+
+	// property values
+	for i := 0; i < numFields; i++ {
+		cxt.writeReflectedValueAmf3(value.Field(i))
+	}
+
 	return nil
 }
