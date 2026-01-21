@@ -448,6 +448,40 @@ func NewEncoder(stream Writer) *Encoder {
 	return &Encoder{stream}
 }
 
+func (cxt *Encoder) WriteUint16(value uint16) error {
+	return binary.Write(cxt.stream, binary.BigEndian, &value)
+}
+
+func (cxt *Encoder) WriteUint32(value uint32) error {
+	return binary.Write(cxt.stream, binary.BigEndian, &value)
+}
+
+func (cxt *Encoder) WriteUint29(value uint32) error {
+	// make sure the value is only 29 bits
+	remainder := value & 0x1fffffff
+	if remainder != value {
+		fmt.Println("warning: WriteUint29 received a value that does not fit in 29 bits")
+	}
+
+	if remainder > 0x1fffff {
+		cxt.writeByte(uint8(remainder>>22)&0x7f + 0x80)
+		cxt.writeByte(uint8(remainder>>15)&0x7f + 0x80)
+		cxt.writeByte(uint8(remainder>>8)&0x7f + 0x80)
+		cxt.writeByte(uint8(remainder>>0) & 0xff)
+	} else if remainder > 0x3fff {
+		cxt.writeByte(uint8(remainder>>14)&0x7f + 0x80)
+		cxt.writeByte(uint8(remainder>>7)&0x7f + 0x80)
+		cxt.writeByte(uint8(remainder>>0) & 0x7f)
+	} else if remainder > 0x7f {
+		cxt.writeByte(uint8(remainder>>7)&0x7f + 0x80)
+		cxt.writeByte(uint8(remainder>>0) & 0x7f)
+	} else {
+		cxt.writeByte(uint8(remainder))
+	}
+
+	return nil
+}
+
 func (cxt *Encoder) writeByte(b uint8) error {
 	return binary.Write(cxt.stream, binary.BigEndian, b)
 }
