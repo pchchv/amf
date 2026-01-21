@@ -619,3 +619,32 @@ func (cxt *Encoder) writeReflectedValueAmf3(value reflect.Value) error {
 		}
 	}
 }
+
+func (cxt *Encoder) writeReflectedArrayAmf3(value reflect.Value) error {
+	elementCount := value.Len()
+	// TODO: Support outgoing array references
+	ref := (elementCount << 1) + 1
+	cxt.WriteUint29(uint32(ref))
+	// write an empty key since this is just a flat array.
+	cxt.WriteStringAmf3("")
+	for i := 0; i < elementCount; i++ {
+		cxt.WriteValueAmf3(value.Index(i).Interface())
+	}
+
+	return nil
+}
+
+func (cxt *Encoder) writeFlatArrayAmf3(value []interface{}) error {
+	elementCount := len(value)
+	// TODO: Support outgoing array references
+	ref := (elementCount << 1) + 1
+	cxt.WriteUint29(uint32(ref))
+	// write an empty key since this is just a flat array.
+	cxt.WriteStringAmf3("")
+	// write dense elements
+	for i := 0; i < elementCount; i++ {
+		cxt.WriteValueAmf3(value[i])
+	}
+
+	return nil
+}
