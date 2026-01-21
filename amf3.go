@@ -68,6 +68,28 @@ func (cxt *Decoder) ReadUint16() (value uint16) {
 	return value
 }
 
+// Read a 29-bit compact encoded integer (as defined in AVM3).
+func (cxt *Decoder) ReadUint29() (result uint32) {
+	for i := 0; i < 4; i++ {
+		b := cxt.ReadByte()
+		if cxt.errored() {
+			return 0
+		}
+
+		if i == 3 {
+			// Last byte does not use the special 0x80 bit.
+			result = (result << 8) + uint32(b)
+		} else {
+			result = (result << 7) + (uint32(b) & 0x7f)
+		}
+
+		if b&0x80 == 0 {
+			break
+		}
+	}
+	return
+}
+
 func (cxt *Decoder) ReadUint32() (value uint32) {
 	err := binary.Read(cxt.stream, binary.BigEndian, &value)
 	cxt.saveError(err)
@@ -124,4 +146,22 @@ func (cxt *Decoder) saveError(err error) {
 			cxt.decodeError = err
 		}
 	}
+}
+
+func (cxt *Decoder) readByteArrayAmf3() []byte {
+	// decode the length as a U29 integer. This includes a flag in the lowest bit
+	ref := cxt.ReadUint29()
+	// the lowest bit is a flag; shift right to get the actual length
+	length := int(ref >> 1)
+	// allocate the byte array with the obtained length.
+	byteArray := make([]byte, length)
+	// read the byte array contents
+	if n, err := cxt.stream.Read(byteArray); err != nil {
+		return nil
+	} else if n < length {
+		// if we read fewer bytes than expected, it's an error
+		return nil
+	}
+
+	return byteArray
 }
