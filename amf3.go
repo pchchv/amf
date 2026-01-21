@@ -492,6 +492,23 @@ func (cxt *Encoder) WriteString(str string) error {
 	return err
 }
 
+func (cxt *Encoder) WriteStringAmf3(s string) error {
+	length := len(s)
+	// TODO: Support outgoing string references
+	cxt.WriteUint29(uint32((length << 1) + 1))
+	cxt.stream.Write([]byte(s))
+	return nil
+}
+
+func (cxt *Encoder) WriteBool(b bool) {
+	val := 0x0
+	if b {
+		val = 0xff
+	}
+
+	binary.Write(cxt.stream, binary.BigEndian, uint8(val))
+}
+
 func (cxt *Encoder) writeByte(b uint8) error {
 	return binary.Write(cxt.stream, binary.BigEndian, b)
 }
