@@ -722,3 +722,18 @@ func (cxt *Encoder) writeReflectedStructAmf3(value reflect.Value) error {
 
 	return nil
 }
+
+// Read an AMF3 value from the stream.
+func ReadValueAmf3(stream Reader) (interface{}, error) {
+	cxt := &Decoder{}
+	cxt.AmfVersion = 3
+	cxt.stream = stream
+	result := cxt.ReadValueAmf3()
+	return result, cxt.decodeError
+}
+
+func WriteValueAmf3(stream Writer, value interface{}) error {
+	cxt := &Encoder{}
+	cxt.stream = stream
+	return cxt.WriteValueAmf3(value)
+}
