@@ -188,6 +188,10 @@ func (cxt *Decoder) ReadValueAmf3() interface{} {
 	return nil
 }
 
+func (cxt *Decoder) ReadValue() interface{} {
+	return cxt.ReadValueAmf3()
+}
+
 func (cxt *Decoder) storeObjectInTable(obj interface{}) {
 	cxt.objectTable = append(cxt.objectTable, obj)
 }
@@ -321,4 +325,27 @@ func (cxt *Decoder) readArrayAmf3() interface{} {
 	}
 
 	return result
+}
+
+func (cxt *Decoder) readClassDefinitionAmf3(ref uint32) *AvmClass {
+	// сheck for a reference to an existing class definition
+	if (ref & 2) == 0 {
+		return cxt.classTable[int(ref>>2)]
+	}
+
+	// parse a class definition
+	className := cxt.readStringAmf3()
+	externalizable := ref&4 != 0
+	dynamic := ref&8 != 0
+	propertyCount := ref >> 4
+	class := AvmClass{className, externalizable, dynamic, make([]string, propertyCount)}
+	// property names
+	for i := uint32(0); i < propertyCount; i++ {
+		class.properties[i] = cxt.readStringAmf3()
+	}
+
+	// save the new class in the loopup table
+	cxt.classTable = append(cxt.classTable, &class)
+	fmt.Printf("read class name = %s\n", class.name)
+	return &class
 }
