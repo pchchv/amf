@@ -16,3 +16,10 @@ type AvmObject struct {
 	staticFields  []interface{}
 	dynamicFields map[string]interface{}
 }
+
+// An "Array" in AVM land is actually stored as
+// a combination of an array and a dictionary.
+type AvmArray struct {
+	elements []interface{}
+	fields   map[string]interface{}
+}
