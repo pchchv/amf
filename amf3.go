@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -348,4 +349,89 @@ func (cxt *Decoder) readClassDefinitionAmf3(ref uint32) *AvmClass {
 	cxt.classTable = append(cxt.classTable, &class)
 	fmt.Printf("read class name = %s\n", class.name)
 	return &class
+}
+
+func (cxt *Decoder) readObjectAmf3() interface{} {
+	ref := cxt.ReadUint29()
+	if cxt.errored() {
+		return nil
+	}
+
+	// check the low bit to see if this is a reference
+	if ref&1 == 0 {
+		index := int(ref >> 1)
+		if index >= len(cxt.objectTable) {
+			cxt.saveError(fmt.Errorf("invalid object index: %d", index))
+			return nil
+		}
+		return cxt.objectTable[index]
+	}
+
+	class := cxt.readClassDefinitionAmf3(ref)
+	object := AvmObject{}
+	object.class = class
+	// for an anonymous class, just return a map[string] interface{}
+	if object.class.name == "" {
+		result := make(map[string]interface{})
+		for prop := range class.properties {
+			value := cxt.ReadValueAmf3()
+			object.staticFields[prop] = value
+		}
+
+		if class.dynamic {
+			for {
+				if name := cxt.readStringAmf3(); name == "" {
+					break
+				} else {
+					value := cxt.ReadValueAmf3()
+					result[name] = value
+				}
+			}
+		}
+		return result
+	}
+
+	object.dynamicFields = make(map[string]interface{})
+	fmt.Printf("AvmObject class name: %s\n", class.name)
+	// store the object in the table before doing any decoding
+	cxt.storeObjectInTable(&object)
+	// read static fields
+	object.staticFields = make([]interface{}, len(class.properties))
+	for i := range class.properties {
+		value := cxt.ReadValueAmf3()
+		object.staticFields[i] = value
+	}
+
+	fmt.Printf("static fields = %v\n", object.staticFields)
+	fmt.Printf("static fields = %v\n", class.properties)
+	if class.dynamic {
+		// parse dynamic fields
+		for {
+			if name := cxt.readStringAmf3(); name == "" {
+				break
+			} else {
+				value := cxt.ReadValueAmf3()
+				object.dynamicFields[name] = value
+			}
+		}
+	}
+
+	// If this type is registered, then unpack this result into an instance of the type
+	// TODO: This could be faster if we didn't create an intermediate AvmObject.
+	goType, foundGoType := cxt.typeMap[class.name]
+	if foundGoType {
+		result := reflect.Indirect(reflect.New(goType))
+		for i := 0; i < len(class.properties); i++ {
+			value := reflect.ValueOf(object.staticFields[i])
+			fieldName := class.properties[i]
+			fieldName = strings.ToUpper(fieldName[:1]) + fieldName[1:]
+			field := result.FieldByName(fieldName)
+			fmt.Printf("Attempting to write %v to field %v\n", object.staticFields[i],
+				class.properties[i])
+			field.Set(value)
+		}
+		return result.Interface()
+	}
+
+	return object
 }
