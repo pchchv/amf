@@ -515,6 +515,13 @@ func (cxt *Encoder) writeObjectAmf3(value interface{}) error {
 	return nil
 }
 
+func (cxt *Encoder) writeAvmObject3(value *AvmObject) error {
+	// TODO: Support outgoing object references.
+	// writeClassDefinitionAmf3 will also write the ref section
+	cxt.writeClassDefinitionAmf3(value.class)
+	return nil
+}
+
 func (cxt *Encoder) WriteDateAmf3(v time.Time) error {
 	// convert time to milliseconds since Unix epoch
 	milliseconds := v.UnixNano() / 1000000
@@ -540,4 +547,24 @@ func (cxt *Encoder) writeByteArrayAmf3(data []byte) error {
 	// append the actual data
 	_, err := cxt.stream.Write(data)
 	return err
+}
+
+func (cxt *Encoder) writeClassDefinitionAmf3(class *AvmClass) {
+	// TODO: Support class references
+	ref := uint32(0x2)
+	if class.externalizable {
+		ref += 0x4
+	}
+
+	if class.dynamic {
+		ref += 0x8
+	}
+
+	ref += uint32(len(class.properties) << 4)
+	cxt.WriteUint29(ref)
+	cxt.WriteStringAmf3(class.name)
+	// property names
+	for _, name := range class.properties {
+		cxt.WriteStringAmf3(name)
+	}
 }
