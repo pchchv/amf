@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const (
@@ -750,4 +751,43 @@ func WriteValueAmf3(stream Writer, value interface{}) error {
 	cxt := &Encoder{}
 	cxt.stream = stream
 	return cxt.WriteValueAmf3(value)
+}
+
+func StructMapToInterface(item interface{}) map[string]interface{} {
+	itemValue := reflect.ValueOf(item)
+	if itemValue.Kind() == reflect.Ptr {
+		itemValue = itemValue.Elem()
+	}
+
+	result := make(map[string]interface{})
+	if itemValue.Kind() == reflect.Struct {
+		itemType := itemValue.Type()
+		for i := 0; i < itemValue.NumField(); i++ {
+			field := itemType.Field(i)
+			fieldValue := itemValue.Field(i)
+			// check if the field is exported; PkgPath is empty for exported fields
+			if field.PkgPath != "" {
+				// skip unexported fields
+				continue
+			}
+
+			// alternatively, check if the first letter of the field name is uppercase
+			if !unicode.IsUpper(rune(field.Name[0])) {
+				// skip if the field is not exported based on name
+				continue
+			}
+
+			// check if the field is an embedded struct
+			if field.Anonymous {
+				// recursively convert the embedded struct and merge its fields
+				embeddedFields := StructMapToInterface(fieldValue.Interface())
+				for k, v := range embeddedFields {
+					result[k] = v
+				}
+			} else {
+				result[field.Name] = InspectAndConvertPayload(fieldValue.Interface())
+			}
+		}
+	}
+	return result
 }
