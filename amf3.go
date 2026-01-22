@@ -730,6 +730,13 @@ func DecodeAMF3(b []byte) interface{} {
 	return decoder.ReadValueAmf3()
 }
 
+func EncodeAMF3(v interface{}) []byte {
+	replyBuffer := bytes.NewBuffer(make([]byte, 0, 1024000))
+	encoder := NewEncoder(replyBuffer)
+	encoder.WriteValueAmf3(v)
+	return replyBuffer.Bytes()
+}
+
 // Read an AMF3 value from the stream.
 func ReadValueAmf3(stream Reader) (interface{}, error) {
 	cxt := &Decoder{}
