@@ -805,6 +805,32 @@ func SliceToInterface(items interface{}) []map[string]interface{} {
 	return result
 }
 
+// InspectAndConvertPayload dynamically handles conversion based on whether the payload is a struct or a slice of structs.
+func InspectAndConvertPayload(payload interface{}) interface{} {
+	if isTimeType(payload) {
+		// return objects as-is
+		return payload
+	}
+
+	payloadValue := reflect.ValueOf(payload)
+	switch payloadValue.Kind() {
+	case reflect.Slice, reflect.Array:
+		// skip slices of time.Time
+		if payloadValue.Len() > 0 && isTimeType(payloadValue.Index(0).Interface()) {
+			return payload
+		}
+		return SliceToInterface(payload)
+	case reflect.Struct, reflect.Ptr:
+		// skip time.Time objects
+		if _, ok := payload.(time.Time); ok {
+			return payload
+		}
+		return StructMapToInterface(payload)
+	default:
+		return payload
+	}
+}
+
 func isTimeType(item interface{}) bool {
 	_, ok := item.(time.Time)
 	return ok
