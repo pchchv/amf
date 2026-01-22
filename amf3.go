@@ -101,7 +101,7 @@ func (cxt *Decoder) ReadUint16() (value uint16) {
 // Read a 29-bit compact encoded integer (as defined in AVM3).
 func (cxt *Decoder) ReadUint29() (result uint32) {
 	for i := 0; i < 4; i++ {
-		b := cxt.ReadByte()
+		b, _ := cxt.ReadByte()
 		if cxt.errored() {
 			return 0
 		}
@@ -153,16 +153,16 @@ func (cxt *Decoder) ReadString() string {
 	return cxt.ReadStringKnownLength(length)
 }
 
-func (cxt *Decoder) ReadByte() uint8 {
+func (cxt *Decoder) ReadByte() (byte, error) {
 	buf := make([]byte, 1)
 	_, err := cxt.stream.Read(buf)
 	cxt.saveError(err)
-	return buf[0]
+	return buf[0], nil
 }
 
 func (cxt *Decoder) ReadValueAmf3() interface{} {
 	// read type marker
-	typeMarker := cxt.ReadByte()
+	typeMarker, _ := cxt.ReadByte()
 	if cxt.errored() {
 		return nil
 	}
