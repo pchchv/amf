@@ -791,3 +791,16 @@ func StructMapToInterface(item interface{}) map[string]interface{} {
 	}
 	return result
 }
+
+func SliceToInterface(items interface{}) []map[string]interface{} {
+	var result []map[string]interface{}
+	itemsValue := reflect.ValueOf(items)
+	if itemsValue.Kind() == reflect.Slice {
+		for i := 0; i < itemsValue.Len(); i++ {
+			item := itemsValue.Index(i).Interface()
+			convertedItem := StructMapToInterface(item)
+			result = append(result, convertedItem)
+		}
+	}
+	return result
+}
