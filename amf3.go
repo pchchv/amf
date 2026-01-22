@@ -804,3 +804,8 @@ func SliceToInterface(items interface{}) []map[string]interface{} {
 	}
 	return result
 }
+
+func isTimeType(item interface{}) bool {
+	_, ok := item.(time.Time)
+	return ok
+}
