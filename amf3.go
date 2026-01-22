@@ -1,6 +1,7 @@
 package goAMF3
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -721,6 +722,12 @@ func (cxt *Encoder) writeReflectedStructAmf3(value reflect.Value) error {
 	}
 
 	return nil
+}
+
+func DecodeAMF3(b []byte) interface{} {
+	reader := bytes.NewReader(b)
+	decoder := NewDecoder(reader, 0)
+	return decoder.ReadValueAmf3()
 }
 
 // Read an AMF3 value from the stream.
