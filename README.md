@@ -1,3 +1,4 @@
+# amf [![Godoc Reference](https://pkg.go.dev/badge/github.com/pchchv/amf)](https://pkg.go.dev/github.com/pchchv/amf) [![Go Report Card](https://goreportcard.com/badge/github.com/pchchv/amf)](https://goreportcard.com/report/github.com/pchchv/amf)
 
 Golang implementation of [AMF3](https://en.wikipedia.org/wiki/Action_Message_Format).
 
